@@ -1,6 +1,6 @@
 import os
 
-folder = "./dataset_full/"
+folder = "./dataset_full/set01"
 
 list = os.listdir(folder)
 os.chdir(folder)

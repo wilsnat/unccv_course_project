@@ -1,7 +1,7 @@
 import exifread as exif
 import os, csv
 
-folder = "./test/"
+folder = "./dataset_full/set01"
 
 list = os.listdir(folder)
 os.chdir(folder)
@@ -17,3 +17,4 @@ with open('exif.csv', 'w') as csvfile:
             tags = exif.process_file(f)
             exif_tags = [tags[x] for x in tag_keys]
             writer.writerow(dict(zip(tag_keys, exif_tags)))
+os.system('move exif.csv ..')
