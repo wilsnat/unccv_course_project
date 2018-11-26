@@ -18,10 +18,9 @@ def data_loader(train_test_split = 0.7,
     lab = np.genfromtxt(labpath, delimiter=',', dtype='float32')
     labpath.close
     bgr = cv2.cvtColor(np.asarray([lab]), cv2.COLOR_Lab2BGR)
-    bgr = bgr.squeeze()
-    #hls = cv2.cvtColor(np.asarray([bgr]), cv2.COLOR_BGR2HLS)
-
-    # It seems we can't use HLS as it is based on the color in the full image
+    #bgr = bgr.squeeze()
+    hls = cv2.cvtColor(bgr, cv2.COLOR_BGR2HLS)
+    hls = hls.squeeze()
 
     #Pull in image filenames:
     im_paths = glob.glob(data_path + '/*/*.jpg')
@@ -53,29 +52,29 @@ def data_loader(train_test_split = 0.7,
     data.test.y = np.zeros((num_testing_examples, 3), dtype = 'float32')
 
     for count, index in enumerate(training_indices):
-        im = cv2.imread(im_paths[index])
-        #im = cv2.cvtColor(im, cv2.COLOR_BGR2HLS)
+        imin = np.float32(cv2.imread(im_paths[index]))/255
+        im = cv2.cvtColor(imin, cv2.COLOR_BGR2HLS)
         if(im.shape[0] < im.shape[1]):
             data.train.im[count, :, :, :] = im
         else:
             data.train.im[count, :, :, :] = im.swapaxes(0,1)
         data.train.ex[count] = exif[index]
-        data.train.y[count] = bgr[int(index/10)]*255
+        data.train.y[count] = hls[int(index/10)]
 
     for count, index in enumerate(testing_indices):
-        im = cv2.imread(im_paths[index])
-        #im = cv2.cvtColor(im, cv2.COLOR_BGR2HLS)
+        imin =  np.float32(cv2.imread(im_paths[index]))/255
+        im = cv2.cvtColor(imin, cv2.COLOR_BGR2HLS)
         if(im.shape[0] < im.shape[1]):
             data.test.im[count, :, :, :] = im
         else:
             data.test.im[count, :, :, :] = im.swapaxes(0,1)
         data.test.ex[count] = exif[index]
-        data.test.y[count] = bgr[int(index/10)]*255
+        data.test.y[count] = hls[int(index/10)]
 
     print('Loaded', str(len(training_indices)), 'training examples and ',
     	  str(len(testing_indices)), 'testing examples. ')
-    print('data.train.im = image in bgr')
-    print('data.train.ex = exif data')
-    print('data.train.y = out in bgr')
+    print('data.*.im = image in hls')
+    print('data.*.ex = exif data')
+    print('data.*.y = out in hls')
 
     return data
