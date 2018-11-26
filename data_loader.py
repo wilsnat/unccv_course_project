@@ -17,8 +17,11 @@ def data_loader(train_test_split = 0.7,
     labpath = open(data_path + '/lab_colors01.csv', 'r', encoding='utf-8-sig')
     lab = np.genfromtxt(labpath, delimiter=',', dtype='float32')
     labpath.close
-    rgb = cv2.cvtColor(np.asarray([lab]), cv2.COLOR_Lab2RGB)
-    hls = cv2.cvtColor(np.asarray([lab]), cv2.COLOR_RGB2HLS)
+    bgr = cv2.cvtColor(np.asarray([lab]), cv2.COLOR_Lab2BGR)
+    bgr = bgr.squeeze()
+    #hls = cv2.cvtColor(np.asarray([bgr]), cv2.COLOR_BGR2HLS)
+
+    # It seems we can't use HLS as it is based on the color in the full image
 
     #Pull in image filenames:
     im_paths = glob.glob(data_path + '/*/*.jpg')
@@ -51,30 +54,28 @@ def data_loader(train_test_split = 0.7,
 
     for count, index in enumerate(training_indices):
         im = cv2.imread(im_paths[index])
-        im = cv2.cvtColor(im, cv2.COLOR_RGB2HLS)
+        #im = cv2.cvtColor(im, cv2.COLOR_BGR2HLS)
         if(im.shape[0] < im.shape[1]):
             data.train.im[count, :, :, :] = im
         else:
             data.train.im[count, :, :, :] = im.swapaxes(0,1)
         data.train.ex[count] = exif[index]
-        data.train.y[count] = lab[int(index/10)]
+        data.train.y[count] = bgr[int(index/10)]*255
 
     for count, index in enumerate(testing_indices):
         im = cv2.imread(im_paths[index])
-        im = cv2.cvtColor(im, cv2.COLOR_RGB2HLS)
+        #im = cv2.cvtColor(im, cv2.COLOR_BGR2HLS)
         if(im.shape[0] < im.shape[1]):
             data.test.im[count, :, :, :] = im
         else:
             data.test.im[count, :, :, :] = im.swapaxes(0,1)
         data.test.ex[count] = exif[index]
-        data.test.y[count] = lab[int(index/10)]
+        data.test.y[count] = bgr[int(index/10)]*255
 
     print('Loaded', str(len(training_indices)), 'training examples and ',
     	  str(len(testing_indices)), 'testing examples. ')
-    print('data.train.im = image in hls')
+    print('data.train.im = image in bgr')
     print('data.train.ex = exif data')
-    print('data.train.y = out in hls')
+    print('data.train.y = out in bgr')
 
     return data
-
-print(data_loader())
