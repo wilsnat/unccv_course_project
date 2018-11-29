@@ -24,7 +24,6 @@ def data_loader(train_test_split = 0.7,
 
     #Pull in image filenames:
     im_paths = glob.glob(data_path + '/*/*.jpg')
-    pdb.set_trace()
 
     #Train test split
     num_training_examples = int(np.round(train_test_split*len(im_paths)))
