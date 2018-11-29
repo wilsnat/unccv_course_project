@@ -16,6 +16,8 @@ data.test.ex = (data.test.ex)/m
 maxhue = 360
 data.train.im[:,:,:,0] = (data.train.im[:,:,:,0])/maxhue
 data.test.im[:,:,:,0] = (data.test.im[:,:,:,0])/maxhue
+data.train.y[:,0] = data.train.y[:,0]/maxhue
+data.test.y[:,0] = data.test.y[:,0]/maxhue
 
 h,w,d = data.train.im[0].shape
 data.train.im = data.train.im[:,round(h/2),round(w/2),:]
@@ -60,15 +62,23 @@ def plot_history(history):
   plt.figure()
   plt.xlabel('Epoch')
   plt.ylabel('Mean Abs Error [1000$]')
-
-  pdb.set_trace()
-
-  plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),
-           label='Train Loss')
-  plt.plot(history.epoch, np.array(history.history['loss']),
-           label = 'Val loss')
+  plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
+  plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
   plt.legend()
-  plt.ylim([0, 5])
   plt.show()
 
+def predict(test_data = data.test.full):
+    test_predictions = model.predict(test_data).flatten()
+
+    plt.title('data')
+    plt.scatter(data.test.y.flatten(), test_predictions)
+    plt.xlabel('True Values')
+    plt.ylabel('Predictions')
+    plt.axis('equal')
+    plt.xlim(plt.xlim())
+    plt.ylim(plt.ylim())
+    _ = plt.plot([-100, 100], [-100, 100])
+    plt.show()
+
 plot_history(history)
+predict()
