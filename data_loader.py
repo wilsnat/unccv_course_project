@@ -24,6 +24,7 @@ def data_loader(train_test_split = 0.7,
 
     #Pull in image filenames:
     im_paths = glob.glob(data_path + '/*/*.jpg')
+    pdb.set_trace()
 
     #Train test split
     num_training_examples = int(np.round(train_test_split*len(im_paths)))
@@ -48,7 +49,7 @@ def data_loader(train_test_split = 0.7,
 
     data.test.im = np.zeros((num_testing_examples, input_image_size[0], input_image_size[1], 3),
     						dtype = 'float32')
-    data.test.ex = np.zeros((num_training_examples, 2), dtype = 'float32')
+    data.test.ex = np.zeros((num_testing_examples, 2), dtype = 'float32')
     data.test.y = np.zeros((num_testing_examples, 3), dtype = 'float32')
 
     for count, index in enumerate(training_indices):
