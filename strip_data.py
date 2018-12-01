@@ -1,7 +1,7 @@
 import exifread as exif
 import os, csv
 
-folder = "./dataset_full/set01"
+folder = "./dataset_full/set02"
 
 list = os.listdir(folder)
 os.chdir(folder)

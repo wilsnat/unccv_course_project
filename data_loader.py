@@ -6,16 +6,18 @@ import pdb;
 
 def data_loader(train_test_split = 0.7,
 				input_image_size = (187, 250),
-				data_path = 'dataset_full'):
-    exifpath = open(data_path + '/exif01.csv', 'r', encoding = 'utf-8-sig')
+				data_path = 'dataset_full',set = "set01"):
+    exifpath = open(data_path + '/exif' + set[-2:] + '.csv', 'r', encoding = 'utf-8-sig')
     exif = np.genfromtxt(exifpath, delimiter=',', dtype='U20')
     exifpath.close
     exif = exif[1:,0:4:3]
     exif[:,0] = [x.split("/")[1] for x in exif[:,0]]
     exif[:,1] = exif[:,1].astype(int)
 
-    labpath = open(data_path + '/lab_colors01.csv', 'r', encoding='utf-8-sig')
+    labpath = open(data_path + '/lab_colors' + set[-2:] + '.csv', 'r', encoding='utf-8-sig')
     lab = np.genfromtxt(labpath, delimiter=',', dtype='float32')
+    lab_samples_per_color = lab[0,0]
+    lab = lab[1:]
     labpath.close
     bgr = cv2.cvtColor(np.asarray([lab]), cv2.COLOR_Lab2BGR)
     #bgr = bgr.squeeze()
@@ -23,7 +25,7 @@ def data_loader(train_test_split = 0.7,
     hls = hls.squeeze()
 
     #Pull in image filenames:
-    im_paths = glob.glob(data_path + '/*/*.jpg')
+    im_paths = glob.glob(data_path + '/' + set + '/*.jpg')
 
     #Train test split
     num_training_examples = int(np.round(train_test_split*len(im_paths)))
@@ -59,7 +61,7 @@ def data_loader(train_test_split = 0.7,
         else:
             data.train.im[count, :, :, :] = im.swapaxes(0,1)
         data.train.ex[count] = exif[index]
-        data.train.y[count] = hls[int(index/10)]
+        data.train.y[count] = hls[int(index/lab_samples_per_color)]
 
     for count, index in enumerate(testing_indices):
         imin =  np.float32(cv2.imread(im_paths[index]))/255
@@ -69,7 +71,7 @@ def data_loader(train_test_split = 0.7,
         else:
             data.test.im[count, :, :, :] = im.swapaxes(0,1)
         data.test.ex[count] = exif[index]
-        data.test.y[count] = hls[int(index/10)]
+        data.test.y[count] = hls[int(index/lab_samples_per_color)]
 
     print('Loaded', str(len(training_indices)), 'training examples and ',
     	  str(len(testing_indices)), 'testing examples. ')
