@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pdb;
 from data_loader import data_loader
 
-dMode = "center_mode"
+dMode = "metrics_mode"
 
 def main():
     data_out = import_and_prep_datasets(i_train_test_split = 0.9,  p_mode = dMode)
@@ -20,7 +20,7 @@ def main():
     model = build_model(all_data)
     model.summary()
 
-    EPOCHS = 10000
+    EPOCHS = 5000
 
     # Store training stats
     history = model.fit(all_data.train.full, all_data.train.y, epochs=EPOCHS,
@@ -28,10 +28,18 @@ def main():
                         callbacks=[PrintDot()])
     plot_history(history)
 
-    predict(model,data_out)
-    predict(model,data2_out)
-    pdb.set_trace()
-    plot(data2_out.test.full[-5:-2],data2.test.y).show()
+    data_predictions = predict(model,data_out)
+    print("")
+    print("set01 pure data test mse: " + str(np.square(np.subtract(data_out.test.y,data_out.test.full[:,-3:])).mean()))
+    print("set01 model test mse: " + str(np.square(np.subtract(data_out.test.y.flatten(), data_predictions)).mean()))
+    plot(data_out.test.full[:,-3:],data_out.test.y).show()
+    plot(data_out.test.y.flatten(), data_predictions).show()
+
+    data2_predictions = predict(model,data2_out)
+    print("set01 pure data test mse: " + str(np.square(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:])).mean()))
+    print("set01 model test mse: " + str(np.square(np.subtract(data2_out.test.y.flatten(), data2_predictions)).mean()))
+    plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
+    plot(data2_out.test.y.flatten(), data2_predictions).show()
 
 #intermediary function. you can just use data_loader() then data_prep() if you'd like
 def import_and_prep_datasets(i_train_test_split = 0.7,
@@ -78,11 +86,23 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
     if mode == 'center_mode':
         data.train.immean = data.train.im.mean(axis=(1,2))
         data.test.immean = data.test.im.mean(axis=(1,2))
-        data.train.im = data.train.im[:,cH-3:cH+3,cW-3:cW+3,:].mean(axis=(1,2))
-        data.test.im = data.test.im[:,cH-3:cH+3,cW-3:cW+3,:].mean(axis=(1,2))
+        data.train.im = data.train.im[:,cH-2:cH+3,cW-2:cW+3,:].mean(axis=(1,2))
+        data.test.im = data.test.im[:,cH-2:cH+3,cW-2:cW+3,:].mean(axis=(1,2))
 
-        data.train.full = np.concatenate((data.train.im,data.train.immean),axis=1)
-        data.test.full = np.concatenate((data.test.im,data.test.immean), axis=1)
+        data.train.full = np.concatenate((data.train.immean,data.train.im),axis=1)
+        data.test.full = np.concatenate((data.test.immean,data.test.im), axis=1)
+    elif mode == 'metrics_mode':
+        data.train.immean = data.train.im.mean(axis=(1,2))
+        data.test.immean = data.test.im.mean(axis=(1,2))
+        data.train.immax = data.train.im.max(axis=(1,2))
+        data.test.immax = data.test.im.max(axis=(1,2))
+        data.train.immin = data.train.im.min(axis=(1,2))
+        data.test.immin = data.test.im.min(axis=(1,2))
+        data.train.im = data.train.im[:,cH-2:cH+3,cW-2:cW+3,:].mean(axis=(1,2))
+        data.test.im = data.test.im[:,cH-2:cH+3,cW-2:cW+3,:].mean(axis=(1,2))
+
+        data.train.full = np.concatenate((data.train.immean,data.train.immax,data.train.immin,data.train.im),axis=1)
+        data.test.full = np.concatenate((data.test.immean,data.test.immax,data.test.immin,data.test.im), axis=1)
     elif mode == "slice_mode":
         sms = slice_mode_slice
         data.train.full = data.train.im[:,::sms,::sms,:]
@@ -94,8 +114,8 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
     elif mode == "full_mode":
         data.train.full = data.train.im.reshape(data.train.im.shape[0],-1)
         data.test.full = data.test.im.reshape(data.test.im.shape[0],-1)
-    data.train.full = np.concatenate((data.train.full,data.train.ex), axis=1)
-    data.test.full = np.concatenate((data.test.full,data.test.ex), axis=1)
+    data.train.full = np.concatenate((data.train.ex,data.train.full), axis=1)
+    data.test.full = np.concatenate((data.test.ex,data.test.full), axis=1)
     return data
 
 def build_model(data):
@@ -117,8 +137,10 @@ def build_model(data):
 class PrintDot(keras.callbacks.Callback):
   def on_epoch_end(self, epoch, logs):
     if epoch % 100 == 0: print('')
+    if epoch % 300 == 0: print(str(epoch) + ": " + str(logs['loss']))
     print('.', end='')
 
+#plot history of the training run (we could implement tensorboard later)
 def plot_history(history):
   plt.figure()
   plt.xlabel('Epoch')
@@ -128,11 +150,14 @@ def plot_history(history):
   plt.legend()
   plt.show()
 
+#predict and show plot
 def predict(model, data):
     test_predictions = model.predict(data.test.full).flatten()
-    plot(data.test.y.flatten(), test_predictions).show()
+    return test_predictions
 
-
+#plot x,y. to show plot make sure to .show() the returned plot
+#extra note: check to see if your model predictions are better than
+# plot(data.test.im.center_pixel, data.test.y)
 def plot(x,y):
     plt.title('data')
     plt.scatter(x, y)
