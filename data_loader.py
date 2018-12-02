@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from easydict import EasyDict
 import glob
 import cv2
@@ -61,7 +62,7 @@ def data_loader(train_test_split = 0.7,
         else:
             data.train.im[count, :, :, :] = im.swapaxes(0,1)
         data.train.ex[count] = exif[index]
-        data.train.y[count] = hls[int(index/lab_samples_per_color)]
+        data.train.y[count] = hls[math.floor(index/lab_samples_per_color)]
 
     for count, index in enumerate(testing_indices):
         imin =  np.float32(cv2.imread(im_paths[index]))/255
@@ -71,7 +72,7 @@ def data_loader(train_test_split = 0.7,
         else:
             data.test.im[count, :, :, :] = im.swapaxes(0,1)
         data.test.ex[count] = exif[index]
-        data.test.y[count] = hls[int(index/lab_samples_per_color)]
+        data.test.y[count] = hls[math.floor(index/lab_samples_per_color)]
 
     print('Loaded', str(len(training_indices)), 'training examples and ',
     	  str(len(testing_indices)), 'testing examples. ')
