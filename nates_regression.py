@@ -83,6 +83,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
     cH = round(h/2)
     cW = round(w/2)
 
+    #center pixel, image mean and exif
     if mode == 'center_mode':
         data.train.immean = data.train.im.mean(axis=(1,2))
         data.test.immean = data.test.im.mean(axis=(1,2))
@@ -91,6 +92,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
 
         data.train.full = np.concatenate((data.train.immean,data.train.im),axis=1)
         data.test.full = np.concatenate((data.test.immean,data.test.im), axis=1)
+    #center pixel, image mean, image max, image min and exif
     elif mode == 'metrics_mode':
         data.train.immean = data.train.im.mean(axis=(1,2))
         data.test.immean = data.test.im.mean(axis=(1,2))
@@ -103,6 +105,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
 
         data.train.full = np.concatenate((data.train.immean,data.train.immax,data.train.immin,data.train.im),axis=1)
         data.test.full = np.concatenate((data.test.immean,data.test.immax,data.test.immin,data.test.im), axis=1)
+    #center pixel, pixels every slice_mode_slice steps and exif
     elif mode == "slice_mode":
         sms = slice_mode_slice
         data.train.full = data.train.im[:,::sms,::sms,:]
@@ -111,6 +114,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
         data.test.full = data.test.full.reshape(data.test.im.shape[0],-1)
         data.train.full = np.concatenate((data.train.full,data.train.im[:,cH,cW,:]),axis=1)
         data.test.full = np.concatenate((data.test.full,data.test.im[:,cH,cW,:]), axis=1)
+    #cfull image and exif
     elif mode == "full_mode":
         data.train.full = data.train.im.reshape(data.train.im.shape[0],-1)
         data.test.full = data.test.im.reshape(data.test.im.shape[0],-1)
