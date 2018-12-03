@@ -1,3 +1,7 @@
+#I think there is a straight forward conversion from the color shifted by some percent of the iso.
+#Maybe lower saturation some amount or shift it in one direction a bit
+#I need to find a keras layer that connects a single value to all the other values
+
 import sys, os
 import numpy as np
 import tensorflow as tf
@@ -14,12 +18,12 @@ from data_loader import data_loader
 dMode = "metrics_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
-hls_sucks = False
+hls_sucks = True
 
 def main():
-    data_out = import_and_prep_datasets(i_train_test_split = 0.3,  p_mode = dMode)
+    data_out = import_and_prep_datasets(i_train_test_split = 0.3,  p_mode = dMode, p_hue_augment=2)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
-    data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode)
+    data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode, p_hue_augment = 5)
 
     all_data = combine_datasets(data_out,data2_out)
     #iso is exponential apparently
@@ -36,24 +40,24 @@ def main():
     plot_history(history)
 
     data_predictions = predict(model,data_out)
-
+    hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full[:,2]]).T+.5)
     print("")
     print("set01 center pixel test mae: " + str(np.abs(np.subtract(data_out.test.y,data_out.test.full[:,-3:])).mean()))
     print("set01 model test mae: " + str(np.abs(np.subtract(data_out.test.y.flatten(), data_predictions)).mean()))
-
+    print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
     #plot(data_out.test.full[:,-3:],data_out.test.y).show()
     #plot(data_out.test.y.flatten(), data_predictions).show()
-
+    print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
     print_colors(data_predictions.reshape(data_out.test.y.shape),data_out.test.full[:,-3:],data_out.test.y, "set01")
 
     data2_predictions = predict(model,data2_out)
-
+    hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
     print("set02 center pixel test mae: " + str(np.abs(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:])).mean()))
     print("set02 model test mae: " + str(np.abs(np.subtract(data2_out.test.y.flatten(), data2_predictions)).mean()))
-
+    print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
     #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
     #plot(data2_out.test.y.flatten(), data2_predictions).show()
-
+    print_colors(hail_mary,data2_out.test.full[:,-3:],data2_out.test.y, "hail mary")
     print_colors(data2_predictions.reshape(data2_out.test.y.shape),data2_out.test.full[:,-3:],data2_out.test.y, "set02")
 
 #intermediary function. you can just use data_loader() then data_prep() if you'd like
@@ -164,14 +168,14 @@ def build_model(data):
     print(data.train.full.shape)
         #relu dropout only for full/partial image?
     model = keras.Sequential([
-        keras.layers.Dense(64, activation=tf.nn.relu,
+        keras.layers.Dense(27, activation=tf.nn.relu,
                            input_shape=(data.train.full.shape[1],)),
-        keras.layers.Dense(64, activation=tf.nn.relu),
+        keras.layers.Dense(9, activation=tf.nn.sigmoid),
         keras.layers.Dense(3)
         ])
     optimizer = tf.train.RMSPropOptimizer(0.0002)
 
-    model.compile(loss='mse',
+    model.compile(loss='mae',
                 optimizer=optimizer,
                 metrics=['mae'])
     return model
@@ -225,7 +229,6 @@ def print_colors(x,y,z,title="color comparison"):
         rgbx = (cv2.cvtColor(np.asarray([x]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
         rgby = (cv2.cvtColor(np.asarray([y]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
         rgbz = (cv2.cvtColor(np.asarray([z]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
-    print(np.max(rgbx))
     palette = np.concatenate((rgbx,rgby,rgbz),axis=0)
     first_value = np.arange(0,rgbx.shape[0]-1)
     second_value = np.arange(rgbx.shape[0],2*rgbx.shape[0]-1)
