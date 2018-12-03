@@ -9,7 +9,7 @@ from easydict import EasyDict'''
 import matplotlib.pyplot as plt
 from data_loader import data_loader
 
-img = cv2.imread('dataset_full/resized_img/0018.jpg')
+img = cv2.imread('dataset_full/resized_img/0068.jpg')
 #cv2.imshow('test img',img)
 #cv2.waitKey(0)
 
