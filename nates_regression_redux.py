@@ -15,10 +15,10 @@ import matplotlib.pyplot as plt
 import pdb;
 from data_loader import data_loader
 
-dMode = "metrics_mode"
+dMode = "center_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
-hls_sucks = True
+hls_sucks = False
 
 def main():
     data_out = import_and_prep_datasets(i_train_test_split = 0.3,  p_mode = dMode, p_hue_augment=2)
@@ -27,13 +27,12 @@ def main():
 
     all_data = combine_datasets(data_out,data2_out)
     #iso is exponential apparently
-    model = build_model(all_data)
-    model.summary()
+    model = build_model(all_data,1)
 
-    EPOCHS = 500
+    EPOCHS = 800
 
     # Store training stats
-    history = model.fit(all_data.train.full, all_data.train.y, batch_size=16,
+    history = model.fit([all_data.train.full[:,1],all_data.train.full[:,-3:]], all_data.train.y, batch_size=8,
                         epochs=EPOCHS,
                         verbose=0,
                         callbacks=[PrintDot()])
@@ -44,21 +43,22 @@ def main():
     print("")
     print("set01 center pixel test mae: " + str(np.abs(np.subtract(data_out.test.y,data_out.test.full[:,-3:])).mean()))
     print("set01 model test mae: " + str(np.abs(np.subtract(data_out.test.y.flatten(), data_predictions)).mean()))
-    print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
+    #print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
     #plot(data_out.test.full[:,-3:],data_out.test.y).show()
     #plot(data_out.test.y.flatten(), data_predictions).show()
-    print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
+    #print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
     print_colors(data_predictions.reshape(data_out.test.y.shape),data_out.test.full[:,-3:],data_out.test.y, "set01")
 
     data2_predictions = predict(model,data2_out)
     hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
     print("set02 center pixel test mae: " + str(np.abs(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:])).mean()))
     print("set02 model test mae: " + str(np.abs(np.subtract(data2_out.test.y.flatten(), data2_predictions)).mean()))
-    print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
+    #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
     #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
     #plot(data2_out.test.y.flatten(), data2_predictions).show()
-    print_colors(hail_mary,data2_out.test.full[:,-3:],data2_out.test.y, "hail mary")
+    #print_colors(hail_mary,data2_out.test.full[:,-3:],data2_out.test.y, "hail mary")
     print_colors(data2_predictions.reshape(data2_out.test.y.shape),data2_out.test.full[:,-3:],data2_out.test.y, "set02")
+    pdb.set_trace()
 
 #intermediary function. you can just use data_loader() then data_prep() if you'd like
 def import_and_prep_datasets(i_train_test_split = 0.7,
@@ -164,21 +164,84 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
     data.test.full = np.concatenate((data.test.ex,data.test.full), axis=1)
     return data
 
-def build_model(data):
+def build_model(data,mnum):
     print(data.train.full.shape)
         #relu dropout only for full/partial image?
-    model = keras.Sequential([
-        keras.layers.Dense(27, activation=tf.nn.relu,
-                           input_shape=(data.train.full.shape[1],)),
-        keras.layers.Dense(9, activation=tf.nn.sigmoid),
-        keras.layers.Dense(3)
-        ])
     optimizer = tf.train.RMSPropOptimizer(0.0002)
-
-    model.compile(loss='mae',
+    #model = keras.Sequential()
+    #(iso*var1+var2)*[var3,var4,var4]*[H,S,L]
+    iso = keras.layers.Input([1])
+    colors = keras.layers.Input([3])
+    inviso = keras.layers.Lambda(inviso_lam,[-1,1])(iso)
+    isocoef = keras.layers.Dense(100, activation='relu')(inviso)
+    H = keras.layers.Lambda(reshapeH_lam,[-1,1])([colors])
+    L = keras.layers.Lambda(reshapeL_lam,[-1,1])([colors])
+    S = keras.layers.Lambda(reshapeS_lam,[-1,1])([colors])
+    #colors_out = keras.layers.Dense(12,activation='relu')(colors)
+    #isoH = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,H])
+    isoL = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,L])
+    isoS = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,S])
+    #Hout =  keras.layers.Dense(1, activation=None)(H)
+    Lout =  keras.layers.Dense(1, activation="sigmoid")(isoL)
+    Sout =  keras.layers.Dense(1, activation="sigmoid")(isoS)
+    yhat = keras.layers.Lambda(final_out,[-1,3])([H,Lout,Sout])
+    out = keras.layers.Flatten()(yhat)
+    #model.add([iso,colors,isocoef,H,S,L,isoH,isoL,isoS,Hout,Lout,Sout,out])
+    #out = keras.layers.Flatten(keras.layers.Activation('sigmoid'))
+    # equivalent to added = keras.layers.add([x1, x2])
+    #init = keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None)
+    model = keras.Model([iso,colors],out)
+    model.compile(loss='mse',
                 optimizer=optimizer,
                 metrics=['mae'])
+
     return model
+
+def inviso_lam(iso):
+    return 1-iso
+
+def reshapeH_lam(input):
+    i = 0
+    colors = input[0]
+    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
+
+def reshapeL_lam(input):
+    i = 1
+    colors = input[0]
+    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
+
+def reshapeS_lam(input):
+    i = 2
+    colors = input[0]
+    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
+
+
+def iso_lam(input):
+    isocoef = input[0]
+    channel = input[1]
+    return keras.layers.Concatenate(axis=1)([isocoef,channel])
+
+def final_out(input):
+    Hout = input[0]
+    Lout = input[1]
+    Sout = input[2]
+    return keras.layers.Concatenate(axis=1)([Hout,Lout,Sout])
+
+        # optimizer = tf.train.RMSPropOptimizer(0.0002)
+        # pdb.set_trace()
+        # iso = tf.placeholder(tf.float32, [None, 1])
+        # isoV = tf.Variable([1.])
+        # biasV = tf.Variable([1.])
+        # colors = tf.placeholder(tf.float32, [None, 3])
+        # iso_out = tf.multiply(iso,isoV)
+        # isocoef = tf.add(iso_out,biasV)
+        # color_scalar = tf.Variable([1.,3.])
+        # colors_out = tf.multiply(color_scalar,colors)
+        # out = tf.multiply(isocoef,colors_out)
+        # # equivalent to added = keras.layers.add([x1, x2])
+        # init = tf.global_variables_initializer()
+        # sess = tf.Session();
+        # sess.run(init)
 
 # Display training progress by printing a single dot for each completed epoch
 class PrintDot(keras.callbacks.Callback):
@@ -199,7 +262,7 @@ def plot_history(history):
 
 #predict and show plot
 def predict(model, data):
-    test_predictions = model.predict(data.test.full).flatten()
+    test_predictions = model.predict([data.test.full[:,1],data.test.full[:,-3:]]).flatten()
     return test_predictions
 
 #plot x,y. to show plot make sure to .show() the returned plot
@@ -223,12 +286,16 @@ def print_colors(x,y,z,title="color comparison"):
         rgby = (y*255).astype('int')
         rgbz = (z*255).astype('int')
     else:
-        x[:,0] = x[:,0]*360
-        y[:,0] = y[:,0]*360
-        z[:,0] = z[:,0]*360
-        rgbx = (cv2.cvtColor(np.asarray([x]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
-        rgby = (cv2.cvtColor(np.asarray([y]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
-        rgbz = (cv2.cvtColor(np.asarray([z]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        pdb.set_trace()
+        rgbx = x.copy()
+        rgby = y.copy()
+        rgbz = z.copy()
+        rgbx[:,0] = rgbx[:,0]*360
+        rgby[:,0] = rgby[:,0]*360
+        rgbz[:,0] = rgbz[:,0]*360
+        rgbx = (cv2.cvtColor(np.asarray([rgbx]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        rgby = (cv2.cvtColor(np.asarray([rgby]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        rgbz = (cv2.cvtColor(np.asarray([rgbz]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
     palette = np.concatenate((rgbx,rgby,rgbz),axis=0)
     first_value = np.arange(0,rgbx.shape[0]-1)
     second_value = np.arange(rgbx.shape[0],2*rgbx.shape[0]-1)

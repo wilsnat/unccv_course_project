@@ -219,12 +219,15 @@ def print_colors(x,y,z,title="color comparison"):
         rgby = (y*255).astype('int')
         rgbz = (z*255).astype('int')
     else:
-        x[:,0] = x[:,0]*360
-        y[:,0] = y[:,0]*360
-        z[:,0] = z[:,0]*360
-        rgbx = (cv2.cvtColor(np.asarray([x]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
-        rgby = (cv2.cvtColor(np.asarray([y]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
-        rgbz = (cv2.cvtColor(np.asarray([z]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        rgbx = x.copy
+        rgby = y.copy
+        rgbz = z.copy
+        rgbx[:,0] = rgbx[:,0]*360
+        rgby[:,0] = rgby[:,0]*360
+        rgbz[:,0] = rgbz[:,0]*360
+        rgbx = (cv2.cvtColor(np.asarray([rgbx]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        rgby = (cv2.cvtColor(np.asarray([rgby]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
+        rgbz = (cv2.cvtColor(np.asarray([rgbz]), cv2.COLOR_HLS2RGB)*255).astype('int').squeeze()
     print(np.max(rgbx))
     palette = np.concatenate((rgbx,rgby,rgbz),axis=0)
     first_value = np.arange(0,rgbx.shape[0]-1)
