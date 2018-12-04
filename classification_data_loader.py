@@ -32,11 +32,15 @@ def data_loader(train_test_split = 0.7,
 	num_training_examples = int(np.round(train_test_split*len(im_paths)))
 	num_testing_examples = len(im_paths) - num_training_examples
 
-	random_indices = np.arange(len(im_paths))
-	np.random.shuffle(random_indices)
+	indices = np.arange(len(im_paths))
 
-	training_indices = random_indices[:num_training_examples]
-	testing_indices = random_indices[num_training_examples:]
+	training_indices = []
+	testing_indices = []
+	for i in range(10):
+		if i < int(train_test_split*10):
+			training_indices.extend(indices[i::10])
+		else:
+			testing_indices.extend(indices[i::10])
 
 	#Make easydicts for data
 	data = EasyDict()
