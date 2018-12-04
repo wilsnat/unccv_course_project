@@ -67,9 +67,9 @@ def data_loader(train_test_split = 0.7,
 		data.train.ex[count] = exif[index]
 		data.train.y[count] = hls[math.floor(index/lab_samples_per_color)]
 
-		print(im_paths[index])
+		'''print(im_paths[index])
 		print(data.train.y[count])
-		print('------')
+		print('------')'''
 
 	for count, index in enumerate(testing_indices):
 		imin =  np.float32(cv2.imread(im_paths[index]))/255
