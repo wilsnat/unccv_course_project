@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import pdb;
 from classification_data_loader import data_loader
 
-dMode = "slice_mode"
+dMode = "metrics_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
 hls_sucks = False

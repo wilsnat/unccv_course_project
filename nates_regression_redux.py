@@ -21,9 +21,9 @@ dMode = "center_mode"
 hls_sucks = False
 
 def main():
-    data_out = import_and_prep_datasets(i_train_test_split = 0.3,  p_mode = dMode, p_hue_augment=2)
+    data_out = import_and_prep_datasets(i_train_test_split = 0.7,  p_mode = dMode, p_hue_augment=1)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
-    data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode, p_hue_augment = 5)
+    data2_out = import_and_prep_datasets(i_train_test_split = 0.7, i_set = "set02", p_mode = dMode, p_hue_augment = 1)
 
     all_data = combine_datasets(data_out,data2_out)
     #iso is exponential apparently
@@ -34,15 +34,15 @@ def main():
     # Store training stats
     history = model.fit([all_data.train.full[:,1],all_data.train.full[:,-3:]], all_data.train.y, batch_size=8,
                         epochs=EPOCHS,
-                        verbose=0,
+                        verbose=0, shuffle=True,
                         callbacks=[PrintDot()])
     plot_history(history)
 
     data_predictions = predict(model,data_out)
     hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full[:,2]]).T+.5)
     print("")
-    print("set01 center pixel test mae: " + str(np.abs(np.subtract(data_out.test.y,data_out.test.full[:,-3:])).mean()))
-    print("set01 model test mae: " + str(np.abs(np.subtract(data_out.test.y.flatten(), data_predictions)).mean()))
+    print("set01 center pixel test mse: " + str(np.power(np.subtract(data_out.test.y,data_out.test.full[:,-3:]),2).mean()))
+    print("set01 model test mse: " + str(np.power(np.subtract(data_out.test.y.flatten(), data_predictions),2).mean()))
     #print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
     #plot(data_out.test.full[:,-3:],data_out.test.y).show()
     #plot(data_out.test.y.flatten(), data_predictions).show()
@@ -51,8 +51,8 @@ def main():
 
     data2_predictions = predict(model,data2_out)
     hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
-    print("set02 center pixel test mae: " + str(np.abs(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:])).mean()))
-    print("set02 model test mae: " + str(np.abs(np.subtract(data2_out.test.y.flatten(), data2_predictions)).mean()))
+    print("set02 center pixel test mae: " + str(np.power(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:]),2).mean()))
+    print("set02 model test mae: " + str(np.power(np.subtract(data2_out.test.y.flatten(), data2_predictions),2).mean()))
     #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
     #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
     #plot(data2_out.test.y.flatten(), data2_predictions).show()
