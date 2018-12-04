@@ -14,6 +14,7 @@ def extractInput(image):
 	img = image.copy()
 	# Converting from BGR Colours Space to HSV
 	#img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+	hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
 	# Defining HSV Threadholds
 	# lower_threshold = np.array([0, 48, 80], dtype=np.uint8)
@@ -34,6 +35,8 @@ def extractInput(image):
 	print('hsv--')
 	print(hsvColor)
 
+
+
 	lowerLimit = (hsvColor[0][0][0]-10,50, 90)
 	upperLimit = (hsvColor[0][0][0]+10,255,255)
 	
@@ -41,7 +44,7 @@ def extractInput(image):
 	upper_threshold = np.asarray([upperLimit])
 
 	# Single Channel mask,denoting presence of colours in the about threshold
-	imMask = cv2.inRange(img, lower_threshold, upper_threshold)
+	imMask = cv2.inRange(hsv_img, lower_threshold, upper_threshold)
 
 	# Cleaning up mask using Gaussian Filter
 	imMask = cv2.GaussianBlur(imMask, (3, 3), 0)

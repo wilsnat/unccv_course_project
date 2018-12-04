@@ -25,43 +25,50 @@ def main():
 
 	for count, index in enumerate(training_indices):
 
-		orig_image = cv2.imread(im_paths[index])
-		img = orig_image
-		#extract forground object from image 
+		#image = cv2.imread('dataset_full/set01/0023.jpg')
+		image = cv2.imread(im_paths[index])
+		img = image
 		mask = np.zeros(img.shape[:2], np.uint8)
+
 		bgMask = np.zeros((1,65),np.float64)
 		fgMask = np.zeros((1,65),np.float64)
-		width,height,channel = img.shape
-		print(width,height,channel)
+
+		width,height,channel = image.shape
 		rect = (round(0.2*width),round(0.2*height),round(0.8*width),round(0.8*height))
+
+		#rect = (50,50,200,200)
 		cv2.grabCut(img, mask, rect, bgMask, fgMask, 5, cv2.GC_INIT_WITH_RECT)
 		mask2 = np.where((mask==2)|(mask==0), 0, 1).astype('uint8')
 		img = img*mask2[:,:,np.newaxis]
 		
 		number_of_colors = 5
 
-		hls_img = cv2.cvtColor(img,cv2.COLOR_BGR2HLS)
-		cluster_img = hls_img.reshape((hls_img.shape[0]*hls_img.shape[1]), 3)
+		img = cv2.cvtColor(img,cv2.COLOR_BGR2HLS)
+		hsv_img = img
+
+		img = img.reshape((img.shape[0]*img.shape[1]), 3)
 
 		# Initiate KMeans Object
 		estimator = KMeans(n_clusters=number_of_colors, random_state=0)
+
 		# Fit the image
-		estimator.fit(cluster_img)
+		estimator.fit(img)
 
 		# Get Colour Information
 		hasThresholding = True
 		colorInformation = getColorInformation(estimator.labels_, estimator.cluster_centers_, hasThresholding)
 
+
 		# Show image
 		plt.subplot(3, 1, 1)
-		plt.imshow(orig_image)
+		plt.imshow(image)
 		plt.title("Original Image")
 		# plt.show()
 
 
 		plt.subplot(3, 1, 2)
-		plt.imshow(hls_img)
-		plt.title("HLS Thresholded  Image")
+		plt.imshow(hsv_img)
+		plt.title("Thresholded  Image")
 
 		colour_bar = plotColorBar(colorInformation)
 		color_name = getDominantColorName(colorInformation)
@@ -70,6 +77,8 @@ def main():
 		plt.imshow(colour_bar)
 		plt.title("Color Bar")
 		plt.title("Color Name - "+color_name)
+
+		
 
 		plt.tight_layout()
 		plt.show()
@@ -89,7 +98,8 @@ def getColorInformation(estimator_labels, estimator_cluster, hasThresholding=Fal
 	# If a mask has be applied, remove th black
 	if hasThresholding == True:
 
-		(occurance, cluster, black) = removeBlack(estimator_labels, estimator_cluster)
+		(occurance, cluster, black) = removeBlack(
+			estimator_labels, estimator_cluster)
 		occurance_counter = occurance
 		estimator_cluster = cluster
 		hasBlack = black
@@ -106,7 +116,8 @@ def getColorInformation(estimator_labels, estimator_cluster, hasThresholding=Fal
 		index = (int(x[0]))
 
 		# Quick fix for index out of bound when there is no threshold
-		index = (index-1) if ((hasThresholding & hasBlack) & (int(index) != 0)) else index
+		index = (index-1) if ((hasThresholding & hasBlack)
+							  & (int(index) != 0)) else index
 
 		# Get the color number into a list
 		color = estimator_cluster[index].tolist()
@@ -180,10 +191,15 @@ def getDominantColorName(colorInformation):
 	hsv_color = np.uint8([[[color[0], color[1], color[2]]]])
 	bgr_color = (cv2.cvtColor(hsv_color,cv2.COLOR_HLS2BGR)).squeeze()
 	
+	#rgb_color = cv2.cvtColor(np.asarray([color]),cv2.COLOR_HSV2BGR)
+	# rgb_color = rgb_color.squeeze()
+	# print(rgb_color)
+	#color_name = webcolors.rgb_to_name((bgr_color[0], bgr_color[1], bgr_color[2]))
+
 	requested_colour = (bgr_color[2], bgr_color[1], bgr_color[0])
 	actual_name, closest_name = get_colour_name(requested_colour)
 
-	print("Actual colour name:", actual_name, ", closest colour name:", closest_name)
+	#print("Actual colour name:", actual_name, ", closest colour name:", closest_name)
 
 	return closest_name;	
 

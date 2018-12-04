@@ -56,7 +56,3 @@ for count, index in enumerate(training_indices):
 	print(index)
 	print(min((abs(rgb_to_hsv(*k)[0]-rgb_to_hsv(*avg_color)[0]),v) for k,v in colors.items()))
 	print("-------------------")
-
-
-
-	
