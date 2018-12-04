@@ -17,7 +17,7 @@ def main():
 	set_name = "set01"
 	#Pull in image filenames:
 	im_paths = glob.glob(data_path + '/' + set_name + '/*.jpg')
-	num_training_examples = 10
+	num_training_examples = 3
 	random_indices = np.arange(len(im_paths))
 	np.random.shuffle(random_indices)
 
@@ -27,22 +27,24 @@ def main():
 
 		#image = cv2.imread('dataset_full/set01/0023.jpg')
 		image = cv2.imread(im_paths[index])
-
-		img = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
-
+		img = image
 		mask = np.zeros(img.shape[:2], np.uint8)
 
 		bgMask = np.zeros((1,65),np.float64)
 		fgMask = np.zeros((1,65),np.float64)
 
-		rect = (50,50,200,200)
+		width,height,channel = image.shape
+		rect = (round(0.2*width),round(0.2*height),round(0.8*width),round(0.8*height))
 
+		#rect = (50,50,200,200)
 		cv2.grabCut(img, mask, rect, bgMask, fgMask, 5, cv2.GC_INIT_WITH_RECT)
 		mask2 = np.where((mask==2)|(mask==0), 0, 1).astype('uint8')
 		img = img*mask2[:,:,np.newaxis]
-		hsv_img = img
 		
 		number_of_colors = 5
+
+		img = cv2.cvtColor(img,cv2.COLOR_BGR2HLS)
+		hsv_img = img
 
 		img = img.reshape((img.shape[0]*img.shape[1]), 3)
 
@@ -170,8 +172,7 @@ def plotColorBar(colorInformation):
 
 		color = tuple(map(int, (x['color'])))
 		
-		cv2.rectangle(color_bar, (int(top_x), 0),
-					  (int(bottom_x), color_bar.shape[0]), color, -1)
+		cv2.rectangle(color_bar, (int(top_x), 0), (int(bottom_x), color_bar.shape[0]), color, -1)
 		top_x = bottom_x
 	return color_bar
 
@@ -188,14 +189,14 @@ def getDominantColorName(colorInformation):
 	
 	
 	hsv_color = np.uint8([[[color[0], color[1], color[2]]]])
-	bgr_color = (cv2.cvtColor(hsv_color,cv2.COLOR_HSV2RGB)).squeeze()
+	bgr_color = (cv2.cvtColor(hsv_color,cv2.COLOR_HLS2BGR)).squeeze()
 	
 	#rgb_color = cv2.cvtColor(np.asarray([color]),cv2.COLOR_HSV2BGR)
 	# rgb_color = rgb_color.squeeze()
 	# print(rgb_color)
 	#color_name = webcolors.rgb_to_name((bgr_color[0], bgr_color[1], bgr_color[2]))
 
-	requested_colour = (bgr_color[0], bgr_color[1], bgr_color[2])
+	requested_colour = (bgr_color[2], bgr_color[1], bgr_color[0])
 	actual_name, closest_name = get_colour_name(requested_colour)
 
 	#print("Actual colour name:", actual_name, ", closest colour name:", closest_name)
