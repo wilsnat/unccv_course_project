@@ -13,64 +13,60 @@ import random
 
 import matplotlib.pyplot as plt
 import pdb;
-from data_loader import data_loader
+from classification_data_loader import data_loader
 
-dMode = "center_mode"
+dMode = "slice_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
 hls_sucks = False
 
 def main():
-    data_out = import_and_prep_datasets(i_train_test_split = 0.3,  p_mode = dMode, p_hue_augment=2)
+    data_out = import_and_prep_datasets(i_train_test_split = 0.7,  p_mode = dMode)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
-    data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode, p_hue_augment = 5)
+    #data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode, i_classificaiton_offset=32)
 
-    all_data = combine_datasets(data_out,data2_out)
-    #iso is exponential apparently
-    model = build_model(all_data,1)
+    all_data = data_out#combine_datasets(data_out,data2_out)
+    model = build_model(all_data)
 
-    EPOCHS = 800
+    EPOCHS = 100
 
     # Store training stats
-    history = model.fit([all_data.train.full[:,1],all_data.train.full[:,-3:]], all_data.train.y, batch_size=8,
+    history = model.fit(all_data.train.full, all_data.train.ybin, batch_size=1,
                         epochs=EPOCHS,
-                        verbose=0,
+                        verbose=0, shuffle=True,
                         callbacks=[PrintDot()])
     plot_history(history)
 
-    data_predictions = predict(model,data_out)
-    hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full[:,2]]).T+.5)
-    print("")
-    print("set01 center pixel test mae: " + str(np.abs(np.subtract(data_out.test.y,data_out.test.full[:,-3:])).mean()))
-    print("set01 model test mae: " + str(np.abs(np.subtract(data_out.test.y.flatten(), data_predictions)).mean()))
-    #print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
+    test_loss, test_acc = model.evaluate(all_data.test.full, all_data.test.ybin,)
+    #hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full]).T+.5)
+    print("set01 loss: ", test_loss, " accuracy:", test_acc)
     #plot(data_out.test.full[:,-3:],data_out.test.y).show()
     #plot(data_out.test.y.flatten(), data_predictions).show()
     #print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
-    print_colors(data_predictions.reshape(data_out.test.y.shape),data_out.test.full[:,-3:],data_out.test.y, "set01")
+    test_predictions = np.argmax(model.predict(all_data.test.full), axis=1)
+    print_colors(data_out.test.y[test_predictions],data_out.test.full[:,-3:],data_out.test.y, "set01")
 
-    data2_predictions = predict(model,data2_out)
-    hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
-    print("set02 center pixel test mae: " + str(np.abs(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:])).mean()))
-    print("set02 model test mae: " + str(np.abs(np.subtract(data2_out.test.y.flatten(), data2_predictions)).mean()))
+    #data2_predictions = predict(model,data2_out)
     #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
     #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
     #plot(data2_out.test.y.flatten(), data2_predictions).show()
     #print_colors(hail_mary,data2_out.test.full[:,-3:],data2_out.test.y, "hail mary")
-    print_colors(data2_predictions.reshape(data2_out.test.y.shape),data2_out.test.full[:,-3:],data2_out.test.y, "set02")
-    pdb.set_trace()
+    #print_colors(data_out.test.y[data_predictions],data2_out.test.full[:,-3:],data2_out.test.y, "set02")
+    #pdb.set_trace()
 
 #intermediary function. you can just use data_loader() then data_prep() if you'd like
 def import_and_prep_datasets(i_train_test_split = 0.7,
 				i_input_image_size = (187, 250),
 				i_data_path = 'dataset_full',
                 i_set = "set01", p_mode = "center_mode",
-                p_slice_mode_slice = 30, p_hue_augment=1):
+                p_slice_mode_slice = 30,
+                i_classificaiton_offset=0):
     data = data_loader(train_test_split=i_train_test_split,
         input_image_size=i_input_image_size,
         data_path = i_data_path,
-        set=i_set)
-    return data_prep(data, mode=p_mode, slice_mode_slice=p_slice_mode_slice, hue_augment=p_hue_augment)
+        set=i_set,
+        classification_offset = i_classificaiton_offset)
+    return data_prep(data, mode=p_mode, slice_mode_slice=p_slice_mode_slice)
 
 def combine_datasets(*datasets):
     if len(datasets) == 1:
@@ -88,31 +84,19 @@ def combine_datasets(*datasets):
             all_data.test.y = np.concatenate((all_data.test.y, d.test.y))
         return all_data
 
-def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1):
+def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
     #m = np.concatenate((data.train.ex,  data.test.ex),axis=0).max(axis=0)
-
     m=2400
     #iso is exponential apparently
     data.train.ex = np.sqrt((data.train.ex)/m)
     data.test.ex = np.sqrt((data.test.ex)/m)
-    if hue_augment>1:
-        for hue_count in range(hue_augment-1):
-            data.train.ex = np.concatenate((data.train.ex,data.train.ex),axis=0)
-            holderim  = data.train.im
-            holdery = data.train.y
-            for i in range(data.train.im.shape[0]):
-                offset = random.random()
-                holderim[i,:,:,0] = (holderim[i,:,:,0]+offset)%1
-                holdery[i,0] = (holdery[i,0]+offset)%1
-            data.train.im = np.concatenate((data.train.im,holderim),axis=0)
-            data.train.y = np.concatenate((data.train.y,holdery),axis=0)
     if hls_sucks:
         for i in range(data.train.im.shape[0]):
             data.train.im[i] = (cv2.cvtColor(data.train.im[i], cv2.COLOR_HLS2RGB))
-        data.train.y[:] =  (cv2.cvtColor(np.array([data.train.y[:]]), cv2.COLOR_HLS2RGB)).squeeze()
+        data.train.y =  (cv2.cvtColor(np.array([data.train.y[1:]]), cv2.COLOR_HLS2RGB)).squeeze()
         for i in range(data.test.im.shape[0]):
             data.test.im[i] = (cv2.cvtColor(data.test.im[i], cv2.COLOR_HLS2RGB))
-        data.test.y[:] =  (cv2.cvtColor(np.array([data.test.y[:]]), cv2.COLOR_HLS2RGB)).squeeze()
+        data.test.y =  (cv2.cvtColor(np.array([data.test.y[1:]]), cv2.COLOR_HLS2RGB)).squeeze()
     else:
         maxhue = 360
         data.train.im[:,:,:,0] = (data.train.im[:,:,:,0])/maxhue
@@ -160,88 +144,36 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
     elif mode == "full_mode":
         data.train.full = data.train.im.reshape(data.train.im.shape[0],-1)
         data.test.full = data.test.im.reshape(data.test.im.shape[0],-1)
+    data.train.ybin = np.zeros((data.train.yi.shape[0],32),dtype=int)
+    for i,j in enumerate(data.train.yi):
+        data.train.ybin[i,j] += 1
+    print(data.train.ybin)
+    data.test.ybin = np.zeros((data.test.yi.shape[0],32),dtype=int)
+    for i,j in enumerate(data.test.yi):
+        data.test.ybin[i,j] += 1
+    print(data.test.ybin)
     data.train.full = np.concatenate((data.train.ex,data.train.full), axis=1)
     data.test.full = np.concatenate((data.test.ex,data.test.full), axis=1)
     return data
 
-def build_model(data,mnum):
+def build_model(data):
     print(data.train.full.shape)
         #relu dropout only for full/partial image?
-    optimizer = tf.train.RMSPropOptimizer(0.0002)
-    #model = keras.Sequential()
-    #(iso*var1+var2)*[var3,var4,var4]*[H,S,L]
-    iso = keras.layers.Input([1])
-    colors = keras.layers.Input([3])
-    inviso = keras.layers.Lambda(inviso_lam,[-1,1])(iso)
-    isocoef = keras.layers.Dense(100, activation='relu')(inviso)
-    H = keras.layers.Lambda(reshapeH_lam,[-1,1])([colors])
-    L = keras.layers.Lambda(reshapeL_lam,[-1,1])([colors])
-    S = keras.layers.Lambda(reshapeS_lam,[-1,1])([colors])
-    #colors_out = keras.layers.Dense(12,activation='relu')(colors)
-    #isoH = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,H])
-    isoL = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,L])
-    isoS = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,S])
-    #Hout =  keras.layers.Dense(1, activation=None)(H)
-    Lout =  keras.layers.Dense(1, activation=None)(isoL)
-    Sout =  keras.layers.Dense(1, activation=None)(isoS)
-    yhat = keras.layers.Lambda(final_out,[-1,3])([H,Lout,Sout])
-    out = keras.layers.Flatten()(yhat)
-    #model.add([iso,colors,isocoef,H,S,L,isoH,isoL,isoS,Hout,Lout,Sout,out])
-    #out = keras.layers.Flatten(keras.layers.Activation('sigmoid'))
-    # equivalent to added = keras.layers.add([x1, x2])
-    #init = keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None)
-    model = keras.Model([iso,colors],out)
-    model.compile(loss='mse',
-                optimizer=optimizer,
-                metrics=['mae'])
+    model = keras.Sequential([
+        keras.layers.Dense(128, activation=tf.nn.relu,
+                           input_shape=(data.train.full.shape[1],)),
+       keras.layers.Dense(64, activation=tf.nn.relu),
+        keras.layers.Dense(64, activation=tf.nn.relu),
+        keras.layers.Dense(32)
+        ])
+    optimizer = tf.train.AdamOptimizer()
 
+    model.compile(loss=tf.losses.softmax_cross_entropy,
+                optimizer=optimizer,
+                metrics=['accuracy'])
     return model
 
-def inviso_lam(iso):
-    return 1-iso
-
-def reshapeH_lam(input):
-    i = 0
-    colors = input[0]
-    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
-
-def reshapeL_lam(input):
-    i = 1
-    colors = input[0]
-    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
-
-def reshapeS_lam(input):
-    i = 2
-    colors = input[0]
-    return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
-
-
-def iso_lam(input):
-    isocoef = input[0]
-    channel = input[1]
-    return keras.layers.Concatenate(axis=1)([isocoef,channel])
-
-def final_out(input):
-    Hout = input[0]
-    Lout = input[1]
-    Sout = input[2]
-    return keras.layers.Concatenate(axis=1)([Hout,Lout,Sout])
-
-        # optimizer = tf.train.RMSPropOptimizer(0.0002)
-        # pdb.set_trace()
-        # iso = tf.placeholder(tf.float32, [None, 1])
-        # isoV = tf.Variable([1.])
-        # biasV = tf.Variable([1.])
-        # colors = tf.placeholder(tf.float32, [None, 3])
-        # iso_out = tf.multiply(iso,isoV)
-        # isocoef = tf.add(iso_out,biasV)
-        # color_scalar = tf.Variable([1.,3.])
-        # colors_out = tf.multiply(color_scalar,colors)
-        # out = tf.multiply(isocoef,colors_out)
-        # # equivalent to added = keras.layers.add([x1, x2])
-        # init = tf.global_variables_initializer()
-        # sess = tf.Session();
-        # sess.run(init)
+def softmax_cross_entropy(y, pred): return tf.losses.softmax_cross_entropy(pred, y)
 
 # Display training progress by printing a single dot for each completed epoch
 class PrintDot(keras.callbacks.Callback):
@@ -253,17 +185,14 @@ class PrintDot(keras.callbacks.Callback):
 #plot history of the training run (we could implement tensorboard later)
 def plot_history(history):
   plt.figure()
+  pdb.set_trace()
   plt.xlabel('Epoch')
   plt.ylabel('Mean Abs Error')
-  plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
-  plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
+  plt.plot(history.epoch, np.array(history.history['acc']),label='Train accuracy')
+  plt.plot(history.epoch, np.array(history.history['loss']),label = 'Train loss')
   plt.legend()
   plt.show()
 
-#predict and show plot
-def predict(model, data):
-    test_predictions = model.predict([data.test.full[:,1],data.test.full[:,-3:]]).flatten()
-    return test_predictions
 
 #plot x,y. to show plot make sure to .show() the returned plot
 #extra note: check to see if your model predictions are better than
