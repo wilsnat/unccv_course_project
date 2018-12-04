@@ -187,7 +187,7 @@ class PrintDot(keras.callbacks.Callback):
 def plot_history(history):
   plt.figure()
   plt.xlabel('Epoch')
-  plt.ylabel('Mean Abs Error [1000$]')
+  plt.ylabel('Mean Abs Error')
   plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
   plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
   plt.legend()

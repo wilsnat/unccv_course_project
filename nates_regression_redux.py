@@ -182,8 +182,8 @@ def build_model(data,mnum):
     isoL = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,L])
     isoS = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,S])
     #Hout =  keras.layers.Dense(1, activation=None)(H)
-    Lout =  keras.layers.Dense(1, activation="sigmoid")(isoL)
-    Sout =  keras.layers.Dense(1, activation="sigmoid")(isoS)
+    Lout =  keras.layers.Dense(1, activation=None)(isoL)
+    Sout =  keras.layers.Dense(1, activation=None)(isoS)
     yhat = keras.layers.Lambda(final_out,[-1,3])([H,Lout,Sout])
     out = keras.layers.Flatten()(yhat)
     #model.add([iso,colors,isocoef,H,S,L,isoH,isoL,isoS,Hout,Lout,Sout,out])
@@ -254,7 +254,7 @@ class PrintDot(keras.callbacks.Callback):
 def plot_history(history):
   plt.figure()
   plt.xlabel('Epoch')
-  plt.ylabel('Mean Abs Error [1000$]')
+  plt.ylabel('Mean Abs Error')
   plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
   plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
   plt.legend()
@@ -286,7 +286,6 @@ def print_colors(x,y,z,title="color comparison"):
         rgby = (y*255).astype('int')
         rgbz = (z*255).astype('int')
     else:
-        pdb.set_trace()
         rgbx = x.copy()
         rgby = y.copy()
         rgbz = z.copy()
