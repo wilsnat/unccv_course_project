@@ -21,14 +21,14 @@ dMode = "metrics_mode"
 hls_sucks = False
 
 def main():
-    data_out = import_and_prep_datasets(i_train_test_split = 0.7,  p_mode = dMode)
+    data_out = import_and_prep_datasets(i_train_test_split = 0.8,  p_mode = dMode)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
     #data2_out = import_and_prep_datasets(i_train_test_split = 0.5, i_set = "set02", p_mode = dMode, i_classificaiton_offset=32)
 
     all_data = data_out#combine_datasets(data_out,data2_out)
     model = build_model(all_data)
 
-    EPOCHS = 100
+    EPOCHS = 700
 
     # Store training stats
     history = model.fit(all_data.train.full, all_data.train.ybin, batch_size=1,
@@ -162,7 +162,8 @@ def build_model(data):
     model = keras.Sequential([
         keras.layers.Dense(128, activation=tf.nn.relu,
                            input_shape=(data.train.full.shape[1],)),
-       keras.layers.Dense(64, activation=tf.nn.relu),
+        keras.layers.Dropout(.6),
+        keras.layers.Dense(64, activation=tf.nn.relu),
         keras.layers.Dense(64, activation=tf.nn.relu),
         keras.layers.Dense(32)
         ])
@@ -185,7 +186,6 @@ class PrintDot(keras.callbacks.Callback):
 #plot history of the training run (we could implement tensorboard later)
 def plot_history(history):
   plt.figure()
-  pdb.set_trace()
   plt.xlabel('Epoch')
   plt.ylabel('Mean Abs Error')
   plt.plot(history.epoch, np.array(history.history['acc']),label='Train accuracy')

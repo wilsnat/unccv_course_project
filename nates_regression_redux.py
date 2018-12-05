@@ -15,30 +15,31 @@ import matplotlib.pyplot as plt
 import pdb;
 from data_loader import data_loader
 
-dMode = "center_mode"
+dMode = "metrics_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
-hls_sucks = False
+hls_sucks = True
 
 def main():
-    data_out = import_and_prep_datasets(i_train_test_split = 0.7,  p_mode = dMode, p_hue_augment=1)
+    data_out = import_and_prep_datasets(i_train_test_split = 0.75,  p_mode = dMode, p_hue_augment=3)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
-    data2_out = import_and_prep_datasets(i_train_test_split = 0.7, i_set = "set02", p_mode = dMode, p_hue_augment = 1)
+    data2_out = import_and_prep_datasets(i_train_test_split = 0.65, i_set = "set02", p_mode = dMode, p_hue_augment = 7)
 
     all_data = combine_datasets(data_out,data2_out)
     #iso is exponential apparently
-    model = build_model(all_data,1)
+    pdb.set_trace()
+    model = build_model(all_data,1,metrics_size=all_data.train.full.shape[1]-3)
 
-    EPOCHS = 800
+    EPOCHS = 500
 
     # Store training stats
-    history = model.fit([all_data.train.full[:,1],all_data.train.full[:,-3:]], all_data.train.y, batch_size=8,
+    history = model.fit([all_data.train.full[:,:-3],all_data.train.full[:,-3:]], all_data.train.y, batch_size=16,
                         epochs=EPOCHS,
                         verbose=0, shuffle=True,
                         callbacks=[PrintDot()])
     plot_history(history)
 
-    data_predictions = predict(model,data_out)
+    data_predictions = model.predict([data_out.test.full[:,:-3],data_out.test.full[:,-3:]]).flatten()
     hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full[:,2]]).T+.5)
     print("")
     print("set01 center pixel test mse: " + str(np.power(np.subtract(data_out.test.y,data_out.test.full[:,-3:]),2).mean()))
@@ -49,10 +50,10 @@ def main():
     #print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
     print_colors(data_predictions.reshape(data_out.test.y.shape),data_out.test.full[:,-3:],data_out.test.y, "set01")
 
-    data2_predictions = predict(model,data2_out)
+    data2_predictions = model.predict([data2_out.test.full[:,:-3],data2_out.test.full[:,-3:]]).flatten()
     hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
-    print("set02 center pixel test mae: " + str(np.power(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:]),2).mean()))
-    print("set02 model test mae: " + str(np.power(np.subtract(data2_out.test.y.flatten(), data2_predictions),2).mean()))
+    print("set02 center pixel test mse: " + str(np.power(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:]),2).mean()))
+    print("set02 model test mse: " + str(np.power(np.subtract(data2_out.test.y.flatten(), data2_predictions),2).mean()))
     #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
     #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
     #plot(data2_out.test.y.flatten(), data2_predictions).show()
@@ -101,9 +102,9 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
             holderim  = data.train.im
             holdery = data.train.y
             for i in range(data.train.im.shape[0]):
-                offset = random.random()
-                holderim[i,:,:,0] = (holderim[i,:,:,0]+offset)%1
-                holdery[i,0] = (holdery[i,0]+offset)%1
+                offset = random.random()*360
+                holderim[i,:,:,0] = (holderim[i,:,:,0]+offset)%360
+                holdery[i,0] = (holdery[i,0]+offset)%360
             data.train.im = np.concatenate((data.train.im,holderim),axis=0)
             data.train.y = np.concatenate((data.train.y,holdery),axis=0)
     if hls_sucks:
@@ -164,27 +165,28 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
     data.test.full = np.concatenate((data.test.ex,data.test.full), axis=1)
     return data
 
-def build_model(data,mnum):
+def build_model(data,mnum,metrics_size=1):
     print(data.train.full.shape)
         #relu dropout only for full/partial image?
     optimizer = tf.train.RMSPropOptimizer(0.0002)
     #model = keras.Sequential()
     #(iso*var1+var2)*[var3,var4,var4]*[H,S,L]
-    iso = keras.layers.Input([1])
+    iso = keras.layers.Input([metrics_size])
     colors = keras.layers.Input([3])
     inviso = keras.layers.Lambda(inviso_lam,[-1,1])(iso)
-    isocoef = keras.layers.Dense(100, activation='relu')(inviso)
+    isoc = keras.layers.Dense(100, activation='relu')(inviso)
+    isocoef = keras.layers.Dropout(.8)(isoc)
     H = keras.layers.Lambda(reshapeH_lam,[-1,1])([colors])
     L = keras.layers.Lambda(reshapeL_lam,[-1,1])([colors])
     S = keras.layers.Lambda(reshapeS_lam,[-1,1])([colors])
     #colors_out = keras.layers.Dense(12,activation='relu')(colors)
-    #isoH = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,H])
+    isoH = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,H])
     isoL = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,L])
     isoS = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,S])
-    #Hout =  keras.layers.Dense(1, activation=None)(H)
+    Hout =  keras.layers.Dense(1, activation=None)(isoH)
     Lout =  keras.layers.Dense(1, activation=None)(isoL)
     Sout =  keras.layers.Dense(1, activation=None)(isoS)
-    yhat = keras.layers.Lambda(final_out,[-1,3])([H,Lout,Sout])
+    yhat = keras.layers.Lambda(final_out,[-1,3])([Hout,Lout,Sout])
     out = keras.layers.Flatten()(yhat)
     #model.add([iso,colors,isocoef,H,S,L,isoH,isoL,isoS,Hout,Lout,Sout,out])
     #out = keras.layers.Flatten(keras.layers.Activation('sigmoid'))
@@ -259,11 +261,6 @@ def plot_history(history):
   plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
   plt.legend()
   plt.show()
-
-#predict and show plot
-def predict(model, data):
-    test_predictions = model.predict([data.test.full[:,1],data.test.full[:,-3:]]).flatten()
-    return test_predictions
 
 #plot x,y. to show plot make sure to .show() the returned plot
 #extra note: check to see if your model predictions are better than
