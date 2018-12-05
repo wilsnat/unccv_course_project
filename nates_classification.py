@@ -44,7 +44,7 @@ def main():
     #plot(data_out.test.y.flatten(), data_predictions).show()
     #print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
     test_predictions = np.argmax(model.predict(all_data.test.full), axis=1)
-    print_colors(data_out.test.y[test_predictions],data_out.test.full[:,-3:],data_out.test.y, "set01")
+    print_colors(data_out.test.y[test_predictions[:12]],data_out.test.full[:12,-3:],data_out.test.y, "set01")
 
     #data2_predictions = predict(model,data2_out)
     #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
