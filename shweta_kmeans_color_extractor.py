@@ -21,15 +21,13 @@ def main():
     num_training_examples = 10
     random_indices = np.arange(len(im_paths))
     np.random.shuffle(random_indices)
-
+    #randomly select num_training_examples images
     training_indices = random_indices[:num_training_examples]
 
     for count, index in enumerate(training_indices):
-
-        #image = cv2.imread('dataset_full/set01/0043.jpg')
+        #read image data
         image = cv2.imread(im_paths[index])
         image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-        #image = clr.to_rgb(image)
         img = image
         mask = np.zeros(img.shape[:2], np.uint8)
 
@@ -39,7 +37,7 @@ def main():
         width,height,channel = image.shape
         rect = (round(0.2*width),round(0.2*height),round(0.8*width),round(0.8*height))
 
-        #rect = (50,50,200,200)
+        #foreground object detection
         cv2.grabCut(img, mask, rect, bgMask, fgMask, 5, cv2.GC_INIT_WITH_RECT)
         mask2 = np.where((mask==2)|(mask==0), 0, 1).astype('uint8')
         img = img*mask2[:,:,np.newaxis]
@@ -65,9 +63,7 @@ def main():
         plt.subplot(3, 1, 1)
         plt.imshow(image)
         plt.title("Original Image")
-        # plt.show()
-
-        #hsv_img = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+        
         plt.subplot(3, 1, 2)
         plt.imshow(hsv_img)
         plt.title("Foreground Image")
@@ -116,8 +112,7 @@ def getColorInformation(estimator_labels, estimator_cluster, hasThresholding=Fal
         index = (int(x[0]))
 
         # Quick fix for index out of bound when there is no threshold
-        index = (index-1) if ((hasThresholding & hasBlack)
-                              & (int(index) != 0)) else index
+        index = (index-1) if ((hasThresholding & hasBlack) & (int(index) != 0)) else index
 
         # Get the color number into a list
         color = estimator_cluster[index].tolist()
@@ -126,8 +121,7 @@ def getColorInformation(estimator_labels, estimator_cluster, hasThresholding=Fal
         color_percentage = (x[1]/totalOccurance)
 
         # make the dictionay of the information
-        colorInfo = {"cluster_index": index, "color": color,
-                     "color_percentage": color_percentage}
+        colorInfo = {"cluster_index": index, "color": color, "color_percentage": color_percentage}
 
         # Add the dictionary to the list
         colorInformation.append(colorInfo)
@@ -192,6 +186,8 @@ def getDominantColorName(colorInformation):
     
     requested_colour = (bgr_color[2], bgr_color[1], bgr_color[0])
     color_code = ",".join(map(str, requested_colour)) 
+
+    #fetch color name using (r,g,b value)
     actual_name, closest_name = get_colour_name(requested_colour)
 
     return closest_name+'('+color_code+')';    
