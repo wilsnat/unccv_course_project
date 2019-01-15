@@ -8,15 +8,14 @@ Appendix:
   **Set01:** set of 320 images of 32 colors
   
   **exif01:** metadata from images of set01, only the exposure time and iso is consistant
-  
 
   **lab_colors01:** colors for set01 from colorreader, in Lab, the first row is the corresponding number of images per color
   
-  **Set02:** set of 320 images of 32 colors
+  **Set02:** set of 24 images of 12 different colors
   
-  **exif02:** metadata from images of set01, only the exposure time and iso is consistant
+  **exif02:** metadata from images of set02, only the exposure time and iso is consistant
   
-  **lab_colors02:** colors for set01 from colorreader, in Lab, the first row is the corresponding number of images per color
+  **lab_colors02:** colors for set02 from colorreader, in Lab, the first row is the corresponding number of images per color
   
   **train_y: **
 
