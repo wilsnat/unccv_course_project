@@ -8,8 +8,21 @@ import pdb;
 def data_loader(train_test_split = 0.7,
 				input_image_size = (187, 250),
 				data_path = 'dataset_full',set = "set01"):
-	#,exif_include = True
-	#if(exif_include):
+	"""
+	Loads images and exif data
+
+	Parameters:
+	    train_test_split: number of images in the trainset vs the testset
+		input_image_size: picture dimensions
+		data_path: location of the data folder
+		set: location of the set folder (in the data folder)
+
+	Returns:
+	    data: train and test for each datasets
+			im: the full image
+			exif: the matching exif data (iso and exposure)
+			y: the ground truth data
+	"""
 	exifpath = open(data_path + '/exif' + set[-2:] + '.csv', 'r', encoding = 'utf-8-sig')
 	exif = np.genfromtxt(exifpath, delimiter=',', dtype='U20')
 	exifpath.close
@@ -67,10 +80,6 @@ def data_loader(train_test_split = 0.7,
 		data.train.ex[count] = exif[index]
 		data.train.y[count] = hls[math.floor(index/lab_samples_per_color)]
 
-		'''print(im_paths[index])
-		print(data.train.y[count])
-		print('------')'''
-
 	for count, index in enumerate(testing_indices):
 		imin =  np.float32(cv2.imread(im_paths[index]))/255
 		im = cv2.cvtColor(imin, cv2.COLOR_BGR2HLS)
@@ -79,7 +88,6 @@ def data_loader(train_test_split = 0.7,
 		else:
 			data.test.im[count, :, :, :] = im.swapaxes(0,1)
 		data.test.ex[count] = exif[index]
-		data.test.y[count] = hls[math.floor(index/lab_samples_per_color)]
 
 	print('Loaded', str(len(training_indices)), 'training examples and ', str(len(testing_indices)), 'testing examples. ')
 	print('data.*.im = image in hls')

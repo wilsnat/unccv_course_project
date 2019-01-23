@@ -15,10 +15,11 @@ import matplotlib.pyplot as plt
 import pdb;
 from classification_data_loader import data_loader
 
+#change the way the image is represented
 dMode = "metrics_mode"
 #this converts the data back to rgb before running the code if true. I need to make an updated
 # data_loader and model that doesn't ever play with hls.
-hls_sucks = False
+rgb_mode = False
 
 def main():
     data_out = import_and_prep_datasets(i_train_test_split = 0.8,  p_mode = dMode)
@@ -90,7 +91,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 30):
     #iso is exponential apparently
     data.train.ex = np.sqrt((data.train.ex)/m)
     data.test.ex = np.sqrt((data.test.ex)/m)
-    if hls_sucks:
+    if rgb_mode:
         for i in range(data.train.im.shape[0]):
             data.train.im[i] = (cv2.cvtColor(data.train.im[i], cv2.COLOR_HLS2RGB))
         data.train.y =  (cv2.cvtColor(np.array([data.train.y[1:]]), cv2.COLOR_HLS2RGB)).squeeze()
@@ -210,7 +211,7 @@ def plot(x,y):
 
 def print_colors(x,y,z,title="color comparison"):
     plt.title(title)
-    if hls_sucks:
+    if rgb_mode:
         rgbx = (x*255).astype('int')
         rgby = (y*255).astype('int')
         rgbz = (z*255).astype('int')

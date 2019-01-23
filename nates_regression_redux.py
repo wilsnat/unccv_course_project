@@ -1,7 +1,3 @@
-#I think there is a straight forward conversion from the color shifted by some percent of the iso.
-#Maybe lower saturation some amount or shift it in one direction a bit
-#I need to find a keras layer that connects a single value to all the other values
-
 import sys, os
 import numpy as np
 import tensorflow as tf
@@ -15,58 +11,68 @@ import matplotlib.pyplot as plt
 import pdb;
 from data_loader import data_loader
 
+#this sets the way the data is represented
 dMode = "metrics_mode"
-#this converts the data back to rgb before running the code if true. I need to make an updated
-# data_loader and model that doesn't ever play with hls.
-hls_sucks = True
+#this converts the data back to rgb before running the code if true
+rgb_mode = True
+
+#training variables
+LEARNING_RATE = 0.0002
+EPOCHS = 200
+BATCH = 16
+SHUFFLE = True
 
 def main():
+    """
+    main control function
+    """
+    #import both data sets
     data_out = import_and_prep_datasets(i_train_test_split = 0.75,  p_mode = dMode, p_hue_augment=3)
     print("train of shape: " + str(data_out.train.im.shape) + " test of shape: " + str(data_out.test.im.shape))
     data2_out = import_and_prep_datasets(i_train_test_split = 0.65, i_set = "set02", p_mode = dMode, p_hue_augment = 7)
 
     all_data = combine_datasets(data_out,data2_out)
-    #iso is exponential apparently
-    pdb.set_trace()
-    model = build_model(all_data,1,metrics_size=all_data.train.full.shape[1]-3)
 
-    EPOCHS = 500
+    #build model
+    model = build_model(all_data,metrics_size=all_data.train.full.shape[1]-3)
 
     # Store training stats
-    history = model.fit([all_data.train.full[:,:-3],all_data.train.full[:,-3:]], all_data.train.y, batch_size=16,
+    history = model.fit([all_data.train.full[:,:-3],all_data.train.full[:,-3:]], all_data.train.y, batch_size=BATCH,
                         epochs=EPOCHS,
-                        verbose=0, shuffle=True,
+                        verbose=0, shuffle=SHUFFLE,
                         callbacks=[PrintDot()])
+    #graph error
     plot_history(history)
 
+    #display colors and compare error of raw pixel value and ground truth/network output and ground truth
     data_predictions = model.predict([data_out.test.full[:,:-3],data_out.test.full[:,-3:]]).flatten()
     hail_mary = data_out.test.full[:,-3:]*(1-np.array([data_out.test.full[:,2]]).T+.5)
     print("")
     print("set01 center pixel test mse: " + str(np.power(np.subtract(data_out.test.y,data_out.test.full[:,-3:]),2).mean()))
     print("set01 model test mse: " + str(np.power(np.subtract(data_out.test.y.flatten(), data_predictions),2).mean()))
-    #print("set01 hail_mary mae: " + str(np.abs(np.subtract(data_out.test.y, hail_mary)).mean()))
-    #plot(data_out.test.full[:,-3:],data_out.test.y).show()
-    #plot(data_out.test.y.flatten(), data_predictions).show()
-    #print_colors(hail_mary,data_out.test.full[:,-3:],data_out.test.y, "hail mary")
     print_colors(data_predictions.reshape(data_out.test.y.shape),data_out.test.full[:,-3:],data_out.test.y, "set01")
 
     data2_predictions = model.predict([data2_out.test.full[:,:-3],data2_out.test.full[:,-3:]]).flatten()
     hail_mary = data2_out.test.full[:,-3:]*((1-np.array([data2_out.test.full[:,2]]).T)*.8+.7)
     print("set02 center pixel test mse: " + str(np.power(np.subtract(data2_out.test.y,data2_out.test.full[:,-3:]),2).mean()))
     print("set02 model test mse: " + str(np.power(np.subtract(data2_out.test.y.flatten(), data2_predictions),2).mean()))
-    #print("set02 hail_mary mae: " + str(np.abs(np.subtract(data2_out.test.y, hail_mary)).mean()))
-    #plot(data2_out.test.full[:,-3:],data2_out.test.y).show()
-    #plot(data2_out.test.y.flatten(), data2_predictions).show()
-    #print_colors(hail_mary,data2_out.test.full[:,-3:],data2_out.test.y, "hail mary")
     print_colors(data2_predictions.reshape(data2_out.test.y.shape),data2_out.test.full[:,-3:],data2_out.test.y, "set02")
-    pdb.set_trace()
 
-#intermediary function. you can just use data_loader() then data_prep() if you'd like
 def import_and_prep_datasets(i_train_test_split = 0.7,
 				i_input_image_size = (187, 250),
 				i_data_path = 'dataset_full',
                 i_set = "set01", p_mode = "center_mode",
                 p_slice_mode_slice = 30, p_hue_augment=1):
+    """
+    Intermediary function. you can just use data_loader() then data_prep() if you'd like
+
+    Parameters:
+        i_ params: same params as inport
+        p_ params: same params as data_prep
+
+    Returns:
+        data: same object out as data_prep
+    """
     data = data_loader(train_test_split=i_train_test_split,
         input_image_size=i_input_image_size,
         data_path = i_data_path,
@@ -74,6 +80,15 @@ def import_and_prep_datasets(i_train_test_split = 0.7,
     return data_prep(data, mode=p_mode, slice_mode_slice=p_slice_mode_slice, hue_augment=p_hue_augment)
 
 def combine_datasets(*datasets):
+    """
+    appends datasets
+
+    Parameters:
+        *datasets: any number of datasets to append
+
+    Returns:
+        data: appended dataset
+    """
     if len(datasets) == 1:
         return datasets[0]
     else:
@@ -90,12 +105,29 @@ def combine_datasets(*datasets):
         return all_data
 
 def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1):
-    #m = np.concatenate((data.train.ex,  data.test.ex),axis=0).max(axis=0)
+    """
+    Takes image data and outputs metrics representing the image
 
+    Number of different represntations are available
+
+    Parameters:
+        data: data downloaded with data_loader
+        mode: type of data representation [center_mode,metrics_mode,slice_mode,full_mode]
+        slice_mode_slice: size of the steps when sampling the image
+        hue_argument: data augmentation based on hue shifts, values >1 shift the hue randomly hue_argument times
+
+    Returns:
+        data: same object as inputed but with the new subobjects train.full and test.full
+            train.full: n representations of the training data in single numpy arrays
+            test.full: n representations of the testing data in single numpy arrays
+    """
+
+    #iso scaling
     m=2400
-    #iso is exponential apparently
     data.train.ex = np.sqrt((data.train.ex)/m)
     data.test.ex = np.sqrt((data.test.ex)/m)
+
+    #hue augmentation
     if hue_augment>1:
         for hue_count in range(hue_augment-1):
             data.train.ex = np.concatenate((data.train.ex,data.train.ex),axis=0)
@@ -107,7 +139,9 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
                 holdery[i,0] = (holdery[i,0]+offset)%360
             data.train.im = np.concatenate((data.train.im,holderim),axis=0)
             data.train.y = np.concatenate((data.train.y,holdery),axis=0)
-    if hls_sucks:
+
+    #after hue shift, allows for data to be represented in rgb mode
+    if rgb_mode:
         for i in range(data.train.im.shape[0]):
             data.train.im[i] = (cv2.cvtColor(data.train.im[i], cv2.COLOR_HLS2RGB))
         data.train.y[:] =  (cv2.cvtColor(np.array([data.train.y[:]]), cv2.COLOR_HLS2RGB)).squeeze()
@@ -115,6 +149,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
             data.test.im[i] = (cv2.cvtColor(data.test.im[i], cv2.COLOR_HLS2RGB))
         data.test.y[:] =  (cv2.cvtColor(np.array([data.test.y[:]]), cv2.COLOR_HLS2RGB)).squeeze()
     else:
+        #normalize hue value
         maxhue = 360
         data.train.im[:,:,:,0] = (data.train.im[:,:,:,0])/maxhue
         data.test.im[:,:,:,0] = (data.test.im[:,:,:,0])/maxhue
@@ -124,6 +159,7 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
     cH = round(h/2)
     cW = round(w/2)
 
+    #how the data is represented, based on global variable dMode
     #center pixel, image mean and exif
     if mode == 'center_mode':
         data.train.immean = data.train.im.mean(axis=(1,2))
@@ -165,41 +201,46 @@ def data_prep(data, mode = "center_mode", slice_mode_slice = 20, hue_augment = 1
     data.test.full = np.concatenate((data.test.ex,data.test.full), axis=1)
     return data
 
-def build_model(data,mnum,metrics_size=1):
+def build_model(data,metrics_size=1):
+    """
+    Keras sparse model
+
+    Parameters:
+        data: data.train data,
+        metrics_size: length of the data input
+
+    Returns:
+        model: the full model
+    """
     print(data.train.full.shape)
-        #relu dropout only for full/partial image?
-    optimizer = tf.train.RMSPropOptimizer(0.0002)
-    #model = keras.Sequential()
-    #(iso*var1+var2)*[var3,var4,var4]*[H,S,L]
-    iso = keras.layers.Input([metrics_size])
+    optimizer = tf.train.RMSPropOptimizer(LEARNING_RATE)
+    #inputs
+    im_metrics = keras.layers.Input([metrics_size])
     colors = keras.layers.Input([3])
-    inviso = keras.layers.Lambda(inviso_lam,[-1,1])(iso)
-    isoc = keras.layers.Dense(100, activation='relu')(inviso)
-    isocoef = keras.layers.Dropout(.8)(isoc)
+    im_metrics_c = keras.layers.Dense(100, activation='relu')(im_metrics)
+    im_metrics_coef = keras.layers.Dropout(.8)(im_metrics_c)
+    #sparse layer
     H = keras.layers.Lambda(reshapeH_lam,[-1,1])([colors])
     L = keras.layers.Lambda(reshapeL_lam,[-1,1])([colors])
     S = keras.layers.Lambda(reshapeS_lam,[-1,1])([colors])
-    #colors_out = keras.layers.Dense(12,activation='relu')(colors)
-    isoH = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,H])
-    isoL = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,L])
-    isoS = keras.layers.Lambda(iso_lam,[-1,2])([isocoef,S])
-    Hout =  keras.layers.Dense(1, activation=None)(isoH)
-    Lout =  keras.layers.Dense(1, activation=None)(isoL)
-    Sout =  keras.layers.Dense(1, activation=None)(isoS)
+    im_metrics_H = keras.layers.Lambda(iso_lam,[-1,2])([im_metrics_coef,H])
+    im_metrics_L = keras.layers.Lambda(iso_lam,[-1,2])([im_metrics_coef,L])
+    im_metrics_S = keras.layers.Lambda(iso_lam,[-1,2])([im_metrics_coef,S])
+    Hout =  keras.layers.Dense(1, activation=None)(im_metrics_H)
+    Lout =  keras.layers.Dense(1, activation=None)(im_metrics_L)
+    Sout =  keras.layers.Dense(1, activation=None)(im_metrics_S)
+    #output
     yhat = keras.layers.Lambda(final_out,[-1,3])([Hout,Lout,Sout])
     out = keras.layers.Flatten()(yhat)
-    #model.add([iso,colors,isocoef,H,S,L,isoH,isoL,isoS,Hout,Lout,Sout,out])
-    #out = keras.layers.Flatten(keras.layers.Activation('sigmoid'))
-    # equivalent to added = keras.layers.add([x1, x2])
-    #init = keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None)
-    model = keras.Model([iso,colors],out)
+    model = keras.Model([im_metrics,colors],out)
     model.compile(loss='mse',
                 optimizer=optimizer,
                 metrics=['mae'])
 
     return model
 
-def inviso_lam(iso):
+###model lambda functions
+def invmetrics_lam(iso):
     return 1-iso
 
 def reshapeH_lam(input):
@@ -217,7 +258,6 @@ def reshapeS_lam(input):
     colors = input[0]
     return keras.backend.reshape(keras.layers.Lambda(lambda x: x[:,i], output_shape=((1,)))(colors),[-1,1])
 
-
 def iso_lam(input):
     isocoef = input[0]
     channel = input[1]
@@ -228,44 +268,37 @@ def final_out(input):
     Lout = input[1]
     Sout = input[2]
     return keras.layers.Concatenate(axis=1)([Hout,Lout,Sout])
-
-        # optimizer = tf.train.RMSPropOptimizer(0.0002)
-        # pdb.set_trace()
-        # iso = tf.placeholder(tf.float32, [None, 1])
-        # isoV = tf.Variable([1.])
-        # biasV = tf.Variable([1.])
-        # colors = tf.placeholder(tf.float32, [None, 3])
-        # iso_out = tf.multiply(iso,isoV)
-        # isocoef = tf.add(iso_out,biasV)
-        # color_scalar = tf.Variable([1.,3.])
-        # colors_out = tf.multiply(color_scalar,colors)
-        # out = tf.multiply(isocoef,colors_out)
-        # # equivalent to added = keras.layers.add([x1, x2])
-        # init = tf.global_variables_initializer()
-        # sess = tf.Session();
-        # sess.run(init)
+###
 
 # Display training progress by printing a single dot for each completed epoch
 class PrintDot(keras.callbacks.Callback):
   def on_epoch_end(self, epoch, logs):
     if epoch % 100 == 0: print('')
-    if epoch % 300 == 0: print(str(epoch) + "th epoch and the loss is " + str(logs['loss']))
+    if epoch % 300 == 0: print(str(epoch) + "the epoch and the loss is " + str(logs['loss']))
     print('.', end='')
 
-#plot history of the training run (we could implement tensorboard later)
 def plot_history(history):
-  plt.figure()
-  plt.xlabel('Epoch')
-  plt.ylabel('Mean Abs Error')
-  plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
-  plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
-  plt.legend()
-  plt.show()
+    """
+    Plot history of the training run
 
-#plot x,y. to show plot make sure to .show() the returned plot
-#extra note: check to see if your model predictions are better than
-# plot(data.test.im.center_pixel, data.test.y)
+    Parameters:
+        history: history from training
+    """
+    plt.figure()
+    plt.xlabel('Epoch')
+    plt.ylabel('Mean Abs Error')
+    plt.plot(history.epoch, np.array(history.history['mean_absolute_error']),label='Train Loss')
+    plt.plot(history.epoch, np.array(history.history['loss']),label = 'Val loss')
+    plt.legend()
+    plt.show()
+
 def plot(x,y):
+    """
+    Plot x,y
+
+    Parameters:
+        x, y: data
+    """
     plt.title('data')
     plt.scatter(x, y)
     plt.xlabel('True Values')
@@ -277,8 +310,15 @@ def plot(x,y):
     return plt
 
 def print_colors(x,y,z,title="color comparison"):
+    """
+    print colors for color comparison
+
+    Parameters:
+        x, y, z: rgb or hsl colors
+        title: graph title
+    """
     plt.title(title)
-    if hls_sucks:
+    if rgb_mode:
         rgbx = (x*255).astype('int')
         rgby = (y*255).astype('int')
         rgbz = (z*255).astype('int')
