@@ -88,6 +88,9 @@ def data_loader(train_test_split = 0.7,
 		else:
 			data.test.im[count, :, :, :] = im.swapaxes(0,1)
 		data.test.ex[count] = exif[index]
+		data.test.y[count] = hls[math.floor(index/lab_samples_per_color)]
+
+	pdb.set_trace()
 
 	print('Loaded', str(len(training_indices)), 'training examples and ', str(len(testing_indices)), 'testing examples. ')
 	print('data.*.im = image in hls')
