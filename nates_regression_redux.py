@@ -211,6 +211,12 @@ def build_model(data,metrics_size=1):
 
     Returns:
         model: the full model
+
+     [metrics]    [HSL]
+        ||dense   / | \ split
+    [im_metrics][H][S][L]
+         \->     \  |  / sparse
+                  [HSL]
     """
     print(data.train.full.shape)
     optimizer = tf.train.RMSPropOptimizer(LEARNING_RATE)
