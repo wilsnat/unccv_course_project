@@ -1,6 +1,13 @@
 # unccv_course_project
 #### Devansh Desai | Shamika Kulkarni | Shweta Patil | Nate Wilson
 
+Data preprep:
+
+rename_data -> resize_data -> strip_data
+
+Network:
+nate_regression_redux with data_loader
+
 Appendix:
 
 **dataset_full:** folder with data
@@ -16,8 +23,6 @@ Appendix:
   **exif02:** metadata from images of set02, only the exposure time and iso is consistant
   
   **lab_colors02:** colors for set02 from colorreader, in Lab, the first row is the corresponding number of images per color
-  
-  **train_y: **
 
 **project_documents:** all the documents from the project
   
